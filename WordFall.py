@@ -4,11 +4,9 @@ import requests
 import sys
 import time
 
-# Inicialització
 pygame.init()
 
-# Configuració
-AMPLADA = 1000
+AMPLADA = 1200
 ALCADA_TOTAL = 650
 ALCADA_JOC = 500
 ALCADA_INFO = ALCADA_TOTAL - ALCADA_JOC
@@ -73,25 +71,26 @@ colores_retro = [
 
 MISSATGES = [
     "Classifica correctament les paraules!",
-    "Utilitza les fletxes per moure't.",
+    "PISTA: els verbs són accions.",
     "Els encerts sumen punts!",
     "Tens només 60 segons!",
-    "Estàs preparat per guanyar?",
+    "PISTA: els adjectius descriuen",
     "Evita els errors, resten punts!",
     "Continua així!",
     "Concentra't en les categories!",
-    "Fes-ho millor que l'anterior!",
+    "PISTA: els verbs poden no estar en infinitiu",
     "Pots fer-ho!"
 ]
 
-# Pygame setup
+
 FONT = pygame.font.SysFont("Verdana", 28)
 pantalla = pygame.display.set_mode((AMPLADA, ALCADA_TOTAL))
 pygame.display.set_caption("WordFall: classifiquem per categories gramaticals!")
 
-# Carreguem imatge
+
 try:
     personatge_img = pygame.image.load("agusti1.png")
+    #Nota: és necessari descarregar la imatge i emmagatzemar-la a la mateixa carpeta que el joc
     personatge_img = pygame.transform.scale(personatge_img, (200, 200))
 except:
     personatge_img = pygame.Surface((200, 200))
@@ -149,10 +148,10 @@ FONT_TITOL = pygame.font.SysFont("Verdana", 72, bold=True)
 def pantalla_inici():
     boto_facil = pygame.Rect(AMPLADA // 2 - 150, 300, 120, 50)
     boto_dificil = pygame.Rect(AMPLADA // 2 + 30, 300, 120, 50)
+    boto_instruccions = pygame.Rect(AMPLADA // 2 - 100, 380, 200, 50)  # botón instrucciones
 
     while True:
         pantalla.fill(BLAU2)
-        
         titol1 = FONT_TITOL.render("WordFall", True, BLANC)
         titol2 = FONT.render("Classifiquem per categories gramaticals!", True, BLANC)
         pantalla.blit(titol1, (AMPLADA // 2 - titol1.get_width() // 2, 100))
@@ -160,12 +159,15 @@ def pantalla_inici():
 
         pygame.draw.rect(pantalla, (0, 200, 0), boto_facil, border_radius=8)
         pygame.draw.rect(pantalla, (200, 0, 0), boto_dificil, border_radius=8)
+        pygame.draw.rect(pantalla, (128, 0, 128), boto_instruccions, border_radius=8)
 
         text_facil = FONT.render("Fàcil", True, BLANC)
         text_dificil = FONT.render("Difícil", True, BLANC)
+        text_instruccions = FONT.render("Instruccions", True, BLANC)
 
         pantalla.blit(text_facil, (boto_facil.x + 25, boto_facil.y + 10))
         pantalla.blit(text_dificil, (boto_dificil.x + 15, boto_dificil.y + 10))
+        pantalla.blit(text_instruccions, (boto_instruccions.x + 10, boto_instruccions.y + 10))
 
         pygame.display.flip()
 
@@ -178,6 +180,48 @@ def pantalla_inici():
                     return "facil"
                 elif boto_dificil.collidepoint(event.pos):
                     return "dificil"
+                elif boto_instruccions.collidepoint(event.pos):
+                    pantalla_instruccions()  # llamar a pantalla de instrucciones
+
+def pantalla_instruccions():
+    boto_tornar = pygame.Rect(AMPLADA // 2 - 60, 520, 140, 50)  # botón volver
+
+    instruccions = [
+        "Instruccions del joc:",
+        "- Classifica correctament les paraules.",
+        "- Utilitza les fletxes esquerra i dreta per moure't.",
+        "- Els encerts sumen punts, els errors resten.",
+        "- Tens 60 segons per aconseguir la màxima puntuació.",
+        "- El nivell fàcil només inclou noms, adjectius i verbs.", 
+        "- El nivell difícil inclou, a més, determinants i adverbis.", 
+        "- De vegades l'Agustí pot donar-te pistes!", 
+        "",
+        "Prem el botó per tornar al menú inicial."
+    ]
+
+    while True:
+        pantalla.fill(BLAU2)
+
+        # Dibuja las líneas de instrucciones
+        for i, linia in enumerate(instruccions):
+            text = FONT.render(linia, True, BLANC)
+            pantalla.blit(text, (50, 100 + i * 40))
+
+        # Dibuja botón volver
+        pygame.draw.rect(pantalla, (150, 0, 0), boto_tornar, border_radius=8)
+        text_tornar = FONT.render("Tornar", True, BLANC)
+        pantalla.blit(text_tornar, (boto_tornar.x + 30, boto_tornar.y + 10))
+
+        pygame.display.flip()
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if boto_tornar.collidepoint(event.pos):
+                    return  # vuelve a pantalla inicio
+
 
 def cuenta_regresiva():
     for i in range(3, 0, -1):
@@ -190,16 +234,18 @@ def cuenta_regresiva():
 def joc():
     mode = pantalla_inici()
     cuenta_regresiva() 
+    palabras_aparecidas = []
+
     
 
     if mode == "facil":
         CATEGORIES = ["NOM", "VERB", "ADJECTIU"]
         velocitat_caiguda_inicial = 3
-        velocitat_caiguda_max = 10
+        velocitat_caiguda_max = 13
     else:
         CATEGORIES = ["NOM", "VERB", "ADJECTIU", "DETERMINANT", "ADVERBI"]
         velocitat_caiguda_inicial = 6
-        velocitat_caiguda_max = 18
+        velocitat_caiguda_max = 16
 
     TAM_COLUMNA = AMPLADA // len(CATEGORIES)
 
@@ -223,11 +269,13 @@ def joc():
             self.y += velocitat
 
     resposta = requests.get("https://fun.codelearn.cat/hackathon/game/new")
+    
     if resposta.status_code != 200:
         print("Error al obtenir game_id")
         sys.exit()
 
     game_id = resposta.json()['game_id']
+    print(game_id)
     random.seed(resposta.json()['seed'])
 
     rellotge = pygame.time.Clock()
@@ -270,6 +318,7 @@ def joc():
         if not paraula_actual:
             text, cat = random.choice(paraules_possibles)
             paraula_actual = Paraula(text, cat)
+            palabras_aparecidas.append(text)
         else:
             velocitat_actual = min(
                 velocitat_caiguda_inicial + increment_velocitat_per_seg * temps_transcorregut,
@@ -291,7 +340,14 @@ def joc():
         dibuixar_tauler(paraula_actual, punts, temps_restant, encerts, errors, CATEGORIES, TAM_COLUMNA, MISSATGES[missatge_index])
 
         if time.time() - ultimo_envio >= INTERVALO:
-            progreso = {"game_id": game_id, "data": {"score": punts, "status": "en progreso"}}
+            progreso = {
+                "game_id": game_id,
+                "data": {
+                    "score": punts,
+                    "status": "en progreso",
+                    "words": palabras_aparecidas
+                }
+            }
             try:
                 requests.post("https://fun.codelearn.cat/hackathon/game/store_progress", json=progreso)
             except Exception as e:
@@ -321,7 +377,6 @@ def joc():
     pygame.time.delay(5000)
     pygame.quit()
     sys.exit()
-
 
 if __name__ == "__main__":
     joc()
